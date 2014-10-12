@@ -2,6 +2,8 @@ import org.apache.spark.{SparkContext, SparkConf}
 import org.apache.spark.rdd.RDD
 import org.apache.spark.SparkContext._
 
+import scala.collection.parallel.immutable.ParSeq
+
 /**
  * Created by karthik on 10/11/14.
  */
@@ -24,11 +26,40 @@ class WordJaccardMatcher(stopWordsFile: String)  extends TitleMatcher with java.
     predictedTitle.title
   }
 
+  def predictTitle(posts: Seq[Post], input: Post): Title = {
+    println("hi")
+    val tokenizedQuestion = input.body.split(" ").map(_.toLowerCase).toSet
+
+    val predictedTitle = posts.reduce { (prev: Post, current: Post) =>
+      if( sortFunction(tokenizedQuestion, current) > sortFunction(tokenizedQuestion, prev)) {
+        current
+      }
+      else {
+        prev
+      }
+    }
+    predictedTitle.title
+  }
+
+  def predictTitle(posts: ParSeq[Post], input: Post): Title = {
+    val tokenizedQuestion = input.body.split(" ").map(_.toLowerCase).toSet
+
+    val predictedTitle = posts.reduce { (prev: Post, current: Post) =>
+      if( sortFunction(tokenizedQuestion, current) > sortFunction(tokenizedQuestion, prev)) {
+        current
+      }
+      else {
+        prev
+      }
+    }
+    predictedTitle.title
+  }
+
   private def sortFunction(tokenizedQuestion: Set[String], question: Post) = {
     val title = question.title
     val titleWords = title.text.split(" ").map(_.toLowerCase).filterNot(stopWords)
     val similarity = jaccardSimilarity(titleWords.toSet, tokenizedQuestion)
-    -similarity
+    similarity
   }
 
   private def jaccardSimilarity[T](set1: Set[T], set2: Set[T]): Double = {
